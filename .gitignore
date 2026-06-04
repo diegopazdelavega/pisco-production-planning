@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+# Gurobi licenses are machine-specific. Keep them outside the repository and
+# let Gurobi discover them using its standard local installation locations.
+gurobi.lic
+*.lic
+

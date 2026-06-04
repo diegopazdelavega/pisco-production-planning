@@ -1,10 +1,11 @@
 import pyomo.environ as pyo
-from pyomo.environ import value, minimize, SolverFactory
+from pyomo.environ import value, minimize
 import pandas as pd
 import random
 import numpy as np
 
 from PiscoV3_Estc import PiscoModel 
+from solver_utils import GurobiConfigurationError, create_gurobi_solver
 
 class PiscoRollingModel:
     def __init__(self, data_path):
@@ -180,10 +181,11 @@ class PiscoRollingModel:
         
         # RP = 1 periodo (30 dias)
         inst = self.Construir_Modelo_Nerviosismo(RP=30, C_nerv_val=5.0)
-        solver = pyo.SolverFactory('gurobi')
-        
-        solver.options['TimeLimit'] = 1800  # subir a 5 min
-        solver.options['MIPGap'] = 0.06   # Aceptar un 5% de gap de optimidad
+        try:
+            solver = create_gurobi_solver({"TimeLimit": 1800, "MIPGap": 0.06})
+        except GurobiConfigurationError as exc:
+            print(f"\nError de configuración de Gurobi:\n{exc}\n")
+            return
 
         for iteracion in range(iteraciones):
         #Bucle principal para rodar el horizonte de planificación y exportar resultados.
@@ -241,7 +243,7 @@ class PiscoRollingModel:
         print("\nCiclo de Horizonte Móvil completado con éxito.")
             
 if __name__ == "__main__":
-    ruta_datos = r"/Users/diegopazdelavega/Documents/Proyecto/capel/Codigos/Datos_Originales.xlsx"
+    ruta_datos = "Datos_Originales.xlsx"
     modelo_rh = PiscoRollingModel(ruta_datos)
     
     # Probamos el ciclo del horizonte móvil

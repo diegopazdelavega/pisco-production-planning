@@ -3,9 +3,10 @@ import numpy as np
 import pyomo.environ as pyo
 from pyomo.environ import (
     AbstractModel, Set, Param, Var, Constraint, Objective, 
-    Binary, NonNegativeReals, NonNegativeIntegers, minimize, value, SolverFactory,
+    Binary, NonNegativeReals, NonNegativeIntegers, minimize, value,
     Expression
 )
+from solver_utils import GurobiConfigurationError, create_gurobi_solver
 
 class PiscoModel: 
     def __init__(self, name=None):
@@ -674,10 +675,12 @@ class PiscoModel:
 
     def Solver(self):
         instance = self.Problema()
-        solver = SolverFactory('gurobi')
-        solver.options['TimeLimit'] = 240
-        solver.options['MIPGap'] = 0.001 
-        results = solver.solve(instance, tee=True)
+        try:
+            solver = create_gurobi_solver({"TimeLimit": 240, "MIPGap": 0.001})
+            results = solver.solve(instance, tee=True)
+        except GurobiConfigurationError as exc:
+            print(f"\nError de configuración de Gurobi:\n{exc}\n")
+            return instance
         
         if (results.solver.status == pyo.SolverStatus.ok) and \
            (results.solver.termination_condition == pyo.TerminationCondition.optimal):
@@ -704,6 +707,6 @@ class PiscoModel:
 
 if __name__ == "__main__":
     modelo = PiscoModel()
-    modelo.ReadExcelFile(r"/Users/diegopazdelavega/Documents/Proyecto/capel/Codigos/Datos_Originales.xlsx")
+    modelo.ReadExcelFile("Datos_Originales.xlsx")
     modelo.Generar_Escenarios_SAA(num_escenarios=10, variabilidad=0.20)
     instancia = modelo.Solver()
