@@ -126,7 +126,7 @@ class PiscoRollingModel:
                 else:
                     inst.D_nt[n, t] = 0.0
 
-    def Ejecutar_Ciclo_Rolling_Horizon(self, iteraciones=4):
+    def Ejecutar_Ciclo_Rolling_Horizon(self, iteraciones=12):
 
         # Bucle principal para rodar el horizonte de planificación y exportar resultados.
         inst = self.Construir_Modelo_Nerviosismo(RP=30, C_nerv_val=5.0)
@@ -193,4 +193,4 @@ if __name__ == "__main__":
     modelo_rh_det = PiscoRollingModel(ruta_datos)
     
     # Ejecutamos el experimento para 4 iteraciones (120 días)
-    modelo_rh_det.Ejecutar_Ciclo_Rolling_Horizon(iteraciones=4)
+    modelo_rh_det.Ejecutar_Ciclo_Rolling_Horizon(iteraciones=12)

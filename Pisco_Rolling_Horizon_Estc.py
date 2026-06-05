@@ -173,16 +173,16 @@ class PiscoRollingModel:
 
         print("Actualización completada.")
 
-    def Ejecutar_Ciclo_Rolling_Horizon(self, iteraciones=4):
+    def Ejecutar_Ciclo_Rolling_Horizon(self, iteraciones=12):
         
         random.seed(42)
         # Generar los escenarios iniciales antes del modelo
-        self.modelo_base.Generar_Escenarios_SAA(num_escenarios=10, variabilidad=0.20)
+        self.modelo_base.Generar_Escenarios_SAA(num_escenarios=100, variabilidad=0.20)
         
         # RP = 1 periodo (30 dias)
         inst = self.Construir_Modelo_Nerviosismo(RP=30, C_nerv_val=5.0)
         try:
-            solver = create_gurobi_solver({"TimeLimit": 1800, "MIPGap": 0.06})
+            solver = create_gurobi_solver({"TimeLimit": 1800, "MIPGap": 0.001})
         except GurobiConfigurationError as exc:
             print(f"\nError de configuración de Gurobi:\n{exc}\n")
             return
@@ -247,4 +247,4 @@ if __name__ == "__main__":
     modelo_rh = PiscoRollingModel(ruta_datos)
     
     # Probamos el ciclo del horizonte móvil
-    modelo_rh.Ejecutar_Ciclo_Rolling_Horizon(iteraciones=8)
+    modelo_rh.Ejecutar_Ciclo_Rolling_Horizon(iteraciones=12)

@@ -3,10 +3,9 @@ import numpy as np
 import pyomo.environ as pyo
 from pyomo.environ import (
     AbstractModel, Set, Param, Var, Constraint, Objective, 
-    Binary, NonNegativeReals, NonNegativeIntegers, minimize, value,
+    Binary, NonNegativeReals, NonNegativeIntegers, minimize, value, SolverFactory,
     Expression
 )
-from solver_utils import GurobiConfigurationError, create_gurobi_solver
 
 class PiscoModel: 
     def __init__(self, name=None):
@@ -167,7 +166,7 @@ class PiscoModel:
         print("Datos procesados")
     
     # Se reciben dos parametros con valor por defecto: n escenarios, desviacion estandar.
-    def Generar_Escenarios_SAA(self, num_escenarios=10, variabilidad=0.20):
+    def Generar_Escenarios_SAA(self, num_escenarios=100, variabilidad=0.20):
         
         #Genera escenarios estadísticos usando Sample Average Approximation (SAA).
         #Asume una distribución Normal (Campana de Gauss).
@@ -675,12 +674,10 @@ class PiscoModel:
 
     def Solver(self):
         instance = self.Problema()
-        try:
-            solver = create_gurobi_solver({"TimeLimit": 240, "MIPGap": 0.001})
-            results = solver.solve(instance, tee=True)
-        except GurobiConfigurationError as exc:
-            print(f"\nError de configuración de Gurobi:\n{exc}\n")
-            return instance
+        solver = SolverFactory('gurobi')
+        solver.options['TimeLimit'] = 240
+        solver.options['MIPGap'] = 0.001 
+        results = solver.solve(instance, tee=True)
         
         if (results.solver.status == pyo.SolverStatus.ok) and \
            (results.solver.termination_condition == pyo.TerminationCondition.optimal):
@@ -707,6 +704,6 @@ class PiscoModel:
 
 if __name__ == "__main__":
     modelo = PiscoModel()
-    modelo.ReadExcelFile("Datos_Originales.xlsx")
-    modelo.Generar_Escenarios_SAA(num_escenarios=10, variabilidad=0.20)
+    modelo.ReadExcelFile(r"/Users/diegopazdelavega/Documents/Proyecto/capel/Codigos/Datos_Originales.xlsx")
+    modelo.Generar_Escenarios_SAA(num_escenarios=100, variabilidad=0.20)
     instancia = modelo.Solver()
