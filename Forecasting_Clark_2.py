@@ -8,7 +8,7 @@ df_demands.rename(columns={'n': 'n', 't': 't', 'D': 'v0'}, inplace=True)
 # v0 = df_demands["v0"]
 # print(v0)
 
-np.random.seed(42)
+np.random.seed(42)  # Semilla para reproducibilidad, ajustada por el día actual
 alpha = 0.05
 
 df_demands['r'] = np.random.normal(0, 1, len(df_demands))
@@ -47,9 +47,10 @@ for index, row in df_demands.iterrows():
 
 df_evolucion = pd.DataFrame(historial_pronosticos)
 
-#df_n1_16 = df_evolucion[(df_evolucion['n'] == 'n1') & (df_evolucion['t'] == 16)]
-print(df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].head(17))
+df_n1_16 = df_evolucion[(df_evolucion['n'] == 'n1') & (df_evolucion['T'] == 16)]
+#print(df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].head(17))
+print(df_n1_16[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']])
 
-#df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].to_excel('Evolucion_Pronosticos.xlsx', index=False)
+df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].to_excel('Evolucion_Pronosticos.xlsx', index=False)
 
 #print(df_evolucion.info())

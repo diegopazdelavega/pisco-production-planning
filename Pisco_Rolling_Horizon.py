@@ -131,7 +131,7 @@ class PiscoRollingModel:
         # Bucle principal para rodar el horizonte de planificación y exportar resultados.
         inst = self.Construir_Modelo_Nerviosismo(RP=30, C_nerv_val=5.0)
         try:
-            solver = create_gurobi_solver({"TimeLimit": 900, "MIPGap": 0.06})
+            solver = create_gurobi_solver({"TimeLimit": 900, "MIPGap": 0})
         except GurobiConfigurationError as exc:
             print(f"\nError de configuración de Gurobi:\n{exc}\n")
             return
