@@ -120,12 +120,11 @@ class PiscoModel_Operativo:
 
     def Cargar_Pronostico_Determinista(self, ruta_csv, dia_actual):
         """
-        Lee el pronóstico contaminado (F_t) de Clark para el día en curso del horizonte rodante.
-        Este es el ÚNICO dato que verá el modelo determinista, asumiendo ciegamente que es la verdad.
+        Lee el pronóstico (F_t) para el día en curso del horizonte rodante.
+        Este es el unico dato que verá el modelo determinista.
         """
-        print(f"Cargando pronóstico comercial determinista para la iteración del Día {dia_actual}...")
+        print(f"Cargando pronóstico determinista para la iteración del Día {dia_actual}...")
         
-        # Llamamos a la función del puente de datos
         self.Demanda_Determinista = cargar_demanda_determinista(
             ruta_csv=ruta_csv, 
             dia_actual=dia_actual

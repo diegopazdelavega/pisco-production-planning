@@ -163,13 +163,12 @@ class PiscoModel:
 
         print("Datos procesados")
     
-    # Se reciben dos parametros con valor por defecto: n escenarios, desviacion estandar.
     def Cargar_Escenarios_Forecasting(self, ruta_csv, dia_actual, num_escenarios=100, alpha=0.05):
         """
-        Lee el pronóstico contaminado (F_t) de Clark para el día en curso del horizonte rodante
-        y genera los S escenarios usando la función del puente de datos.
+        Lee el pronóstico (F_t) para el día en curso del horizonte rodante
+        y genera los S escenarios.
         """
-        print(f"Generando {num_escenarios} escenarios comerciales para la iteración del Día {dia_actual}...")
+        print(f"Generando {num_escenarios} escenarios para la iteración del Día {dia_actual}...")
         
         self.N_Scenarios = num_escenarios
         # Las probabilidades en este método de simulación siguen siendo equiprobables (1/N)

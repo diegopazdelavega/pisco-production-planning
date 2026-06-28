@@ -6,7 +6,7 @@ def cargar_demanda_determinista(ruta_csv, dia_actual):
     """
     Filtra el Excel de pronósticos para el 'dia_actual' y extrae F_t.
     """
-    df = pd.read_excel(ruta_csv)
+    df = pd.read_excel(ruta_csv, engine='openpyxl')
     
     # Pronostico del dia actual: filtram por 'Fecha de Hoy' == dia_actual
     df_hoy = df[df['Fecha de Hoy'] == dia_actual]
@@ -37,12 +37,11 @@ def cargar_demanda_estocastica(ruta_csv, dia_actual, num_escenarios=1, alpha=0.0
     Filtra el Excel para el 'dia_actual', lee la base del pronóstico (v_t) 
     y genera 'W' escenarios usando la dispersión de Clark.
     """
-    df = pd.read_excel(ruta_csv)
+    df = pd.read_excel(ruta_csv, engine='openpyxl')
     df_hoy = df[df['Fecha de Hoy'] == dia_actual]
     
     demanda_dict = defaultdict(float)
     
-    # Fijamos una semilla dinámica basada en el día para reproducibilidad
     np.random.seed(42)
     
     for index, row in df_hoy.iterrows():
@@ -77,13 +76,6 @@ def cargar_demanda_estocastica(ruta_csv, dia_actual, num_escenarios=1, alpha=0.0
             
     return dict(demanda_dict)
 
-# =====================================================================
-# EJEMPLO DE CÓMO INYECTARLO EN TU BUCLE DE ROLLING HORIZON
-# ====================================================================
-
-# =====================================================================
-# EJEMPLO DE CÓMO INYECTARLO EN TU BUCLE DE ROLLING HORIZON
-# =====================================================================
 if __name__ == "__main__":
     ruta_archivo = "Evolucion_Pronosticos.xlsx"
     
@@ -96,14 +88,12 @@ if __name__ == "__main__":
     # 2. Para Estocástico:
     dict_est = cargar_demanda_estocastica(ruta_archivo, dia_actual=dia_de_iteracion, num_escenarios=1, alpha=0.05)
     
-    # --- MÉTODO 2: EXPORTAR A EXCEL PARA COMPROBACIÓN VISUAL ---
     print("\nGenerando Excel de comprobación...")
     df_validacion = pd.DataFrame([
         {'Mezcla': key[0], 'Dia_Entrega': key[1], 'Escenario': key[2], 'Demanda_Generada': val}
         for key, val in dict_est.items()
     ])
     df_validacion.to_excel("Validacion_Escenarios.xlsx", index=False)
-    print("¡Listo! Revisa el archivo 'Validacion_Escenarios.xlsx'.")
     print("Módulos de integración listos para Pyomo.")
 
     

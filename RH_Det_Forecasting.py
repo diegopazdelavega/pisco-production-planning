@@ -13,19 +13,15 @@ class PiscoRollingModel:
         self.instance = None
         self.dia_calendario = 0
         
-        # Historial para análisis de costos
         self.historial_costos = []
 
-        # --- CORRECCIÓN: Cargar la demanda inicial aquí ---
         # Esto crea el atributo 'Demanda_Determinista' en el objeto 'modelo_base'
         # antes de que 'Problema()' sea llamado por primera vez.
         self.modelo_base.Cargar_Pronostico_Determinista(pronostico_path, self.dia_calendario)
 
         self.dia_calendario = 0
 
-        # --- CORRECCIÓN: Pre-procesar el archivo de pronósticos ---
-        # Cargamos el archivo de pronósticos completo una sola vez.
-        df_pronosticos_full = pd.read_excel(pronostico_path)
+        df_pronosticos_full = pd.read_excel(pronostico_path, engine='openpyxl')
         
         # Creamos un diccionario para búsqueda rápida con la clave (mezcla, dia_absoluto).
         # Esto es mucho más eficiente que filtrar el DataFrame en cada iteración.
@@ -137,8 +133,8 @@ class PiscoRollingModel:
         # Sumamos los días que avanzamos
         self.dia_calendario += RP
         
-        # --- CORRECCIÓN: Inyectar aquí el pronóstico para la SIGUIENTE iteración ---
-        print(f"[INFO] Actualizando pronóstico para el día calendario: {self.dia_calendario}")
+        # pronóstico para la sig iteración 
+        print(f"Actualizando pronóstico para el día calendario: {self.dia_calendario}")
         for n in inst.N:
             n_name = self.modelo_base.Mezclas.iloc[n-1]['n']
             for t in inst.Tp:
@@ -155,7 +151,7 @@ class PiscoRollingModel:
         en un DataFrame y lo exporta a un archivo Excel.
         """
         if not self.historial_costos:
-            print("[WARN] No hay historial de costos para exportar.")
+            print("No hay historial de costos para exportar.")
             return
 
         df_historial = pd.DataFrame(self.historial_costos)
@@ -176,7 +172,7 @@ class PiscoRollingModel:
             # El pronóstico ya se actualizó al final de la iteración anterior
             # (o en __init__ para la primera iteración).
             try:
-                solver = create_gurobi_solver({"TimeLimit": 900, "MIPGap": 0})
+                solver = create_gurobi_solver({"TimeLimit": 900, "MIPGap": 0.05})
                 results = solver.solve(inst, tee=False)
 
                 
@@ -248,5 +244,4 @@ if __name__ == "__main__":
     ruta_pronosticos = "Evolucion_Pronosticos.xlsx"
     modelo_rh_det = PiscoRollingModel(data_path=ruta_datos, pronostico_path=ruta_pronosticos)
     
-    # Ejecutamos el experimento para 4 iteraciones
     modelo_rh_det.Ejecutar_Ciclo_Rolling_Horizon(iteraciones=8)
