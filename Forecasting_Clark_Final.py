@@ -2,14 +2,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from Integrar_Forecasting import calcular_desviacion_clark, factor_incertidumbre_no_lineal
 
-# --- 1. CARGA DE DATOS ---
 df_demands = pd.read_excel('Datos_Originales.xlsx', sheet_name='Demands')
 df_demands.rename(columns={'n': 'n', 't': 't', 'D': 'v0'}, inplace=True)
 
-# --- EXTENSIÓN ARTIFICIAL DEL HORIZONTE ---
 # Para correr más iteraciones, necesitamos pronósticos más lejanos.
-# Vamos a duplicar las demandas existentes y empujarlas 210 días hacia el futuro.
+# duplicar las demandas existentes y empujarlas 210 días hacia el futuro.
 df_demands_future = df_demands.copy()
 df_demands_future['t'] = df_demands_future['t'] + 210 # Empujamos el tiempo de entrega
 
@@ -19,13 +18,18 @@ df_demands_extended = pd.concat([df_demands, df_demands_future], ignore_index=Tr
 alpha = 0.05
 
 # --- 2. FUNCIÓN DE SIMULACIÓN ---
-# Metemos tu lógica en una función que recibe la semilla
-def simular_escenario(df_base, valor_alpha, semilla):
-    np.random.seed(semilla)
+def simular_escenario(df_base, valor_alpha, semilla, rng=None):
+    if rng is None:
+        rng = np.random.default_rng(semilla)
+
     df = df_base.copy()
     
-    df['r'] = np.random.normal(0, 1, len(df))
-    df['vT'] = df['v0'] * (1 + df['t'] * valor_alpha * df['r'])
+    df['r'] = np.clip(rng.normal(0, 1, len(df)), -4, 4)
+    df['sigma_T'] = df.apply(
+        lambda row: calcular_desviacion_clark(row['v0'], row['t'], valor_alpha),
+        axis=1
+    )
+    df['vT'] = df['v0'] + df['sigma_T'] * df['r']
     df['vT'] = df['vT'].clip(lower=0)
 
     historial = []
@@ -43,9 +47,13 @@ def simular_escenario(df_base, valor_alpha, semilla):
                 F_t = v0
                 r_t = 0
             else:
-                v_t = v0 + (t/T) * (vT - v0)
-                r_t = np.random.normal(0, 1)
-                F_t = max(0, v_t * (1 + t * valor_alpha * r_t))
+                factor_T = factor_incertidumbre_no_lineal(T)
+                factor_t = factor_incertidumbre_no_lineal(t)
+                peso_error = factor_t / factor_T if factor_T > 0 else 0
+                v_t = v0 + peso_error * (vT - v0)
+                r_t = np.clip(rng.normal(0, 1), -4, 4)
+                sigma_t = calcular_desviacion_clark(v_t, t, valor_alpha)
+                F_t = max(0, v_t + sigma_t * r_t)  # v_t(1+ raiz(log(1+t)*alpha*r_t)) y v_t*raiz(log(1+t)*alpha*r_t = sigma_t*r_t
             
             historial.append({
                 'Semilla': semilla, # <--- Agregamos qué semilla generó esta fila
@@ -55,12 +63,13 @@ def simular_escenario(df_base, valor_alpha, semilla):
             
     return pd.DataFrame(historial)
 
-semillas_a_probar = [42] # Para el archivo final, una sola semilla es suficiente
+semillas_a_probar = [40] # Para el archivo final, una sola semilla es suficiente
 lista_dfs = []
 
 for s in semillas_a_probar:
     # --- CORRECCIÓN: Llamar a la simulación UNA SOLA VEZ con los datos extendidos ---
-    df_escenario = simular_escenario(df_demands_extended, alpha, s)
+    rng = np.random.default_rng(s)
+    df_escenario = simular_escenario(df_demands_extended, alpha, s, rng=rng)
     lista_dfs.append(df_escenario)
 
 # Unimos todos los escenarios en una sola super tabla
@@ -113,14 +122,35 @@ def graficar_multisemilla(df, mezcla, periodo_T, valor_alpha):
     plt.tight_layout()
     plt.show()
 
-# --- 5. PRUEBA DEL GRÁFICO ---
-# Para n1 entregado en T=16 (Puedes probar con n1 y T=150 también)
-# graficar_multisemilla(df_evolucion_multisemilla, mezcla='n1', periodo_T=16, valor_alpha=alpha)
-# graficar_multisemilla(df_evolucion_multisemilla, mezcla='n1', periodo_T=16, valor_alpha=alpha)
-
 # --- 6. EXPORTAR EL ARCHIVO FINAL ---
 output_filename = "Evolucion_Pronosticos.xlsx"
 if os.path.exists(output_filename):
     os.remove(output_filename) # Borramos el viejo para evitar conflictos
 df_evolucion_multisemilla.to_excel(output_filename, index=False, engine='openpyxl')
 print(f"Archivo de pronósticos extendido '{output_filename}' generado correctamente.")
+
+def mostrar_datos_consola(df, mezcla='n1', periodo_T=16):
+    df_filtrado = df[(df['n'] == mezcla) & (df['T'] == periodo_T)].copy()
+
+    if df_filtrado.empty:
+        print(f"No se encontraron datos para mezcla={mezcla}, T={periodo_T}.")
+        return
+
+    df_filtrado = df_filtrado.sort_values(['Semilla', 't'], ascending=[True, False])
+    columnas = ['Semilla', 'Fecha de Hoy', 'n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t', 'r_t']
+    df_filtrado = df_filtrado[columnas]
+
+    columnas_redondeo = ['v0', 'vT', 'v_t', 'F_t', 'r_t']
+    df_filtrado[columnas_redondeo] = df_filtrado[columnas_redondeo].round(2)
+
+    print("\n" + "=" * 90)
+    print(f"Datos generados para mezcla={mezcla}, T={periodo_T}")
+    print("=" * 90)
+    print(df_filtrado.to_string(index=False))
+mostrar_datos_consola(df_evolucion_multisemilla, mezcla='n1', periodo_T=16)
+
+# --- 5. PRUEBA DEL GRÁFICO ---
+# Para n1 entregado en T=16 (Puedes probar con n1 y T=150 también)
+# graficar_multisemilla(df_evolucion_multisemilla, mezcla='n1', periodo_T=16, valor_alpha=alpha)
+graficar_multisemilla(df_evolucion_multisemilla, mezcla='n1', periodo_T=16, valor_alpha=alpha)
+

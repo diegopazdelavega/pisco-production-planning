@@ -1,4 +1,6 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python.defaultInterpreterPath": "/Users/diegopazdelavega/Documents/github/pisco-production-planning/.conda/bin/python",
+    "python.terminal.activateEnvironment": true
 }

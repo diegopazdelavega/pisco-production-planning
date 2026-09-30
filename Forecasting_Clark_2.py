@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import random
+from Integrar_Forecasting import calcular_desviacion_clark, factor_incertidumbre_no_lineal
 
 df_demands = pd.read_excel('Datos_Originales.xlsx', sheet_name='Demands')
 df_demands.rename(columns={'n': 'n', 't': 't', 'D': 'v0'}, inplace=True)
@@ -8,12 +8,16 @@ df_demands.rename(columns={'n': 'n', 't': 't', 'D': 'v0'}, inplace=True)
 # v0 = df_demands["v0"]
 # print(v0)
 
-np.random.seed(42)  # Semilla para reproducibilidad, ajustada por el día actual
+rng = np.random.default_rng(42)  # Semilla para reproducibilidad
 alpha = 0.05
 
-df_demands['r'] = np.random.normal(0, 1, len(df_demands))
+df_demands['r'] = np.clip(rng.normal(0, 1, len(df_demands)), -4, 4)
+df_demands['sigma_T'] = df_demands.apply(
+    lambda row: calcular_desviacion_clark(row['v0'], row['t'], alpha),
+    axis=1
+)
 
-df_demands['vT'] = df_demands['v0'] * (1 + df_demands['t'] * alpha * df_demands['r'])
+df_demands['vT'] = df_demands['v0'] + df_demands['sigma_T'] * df_demands['r']
 
 df_demands['vT'] = df_demands['vT'].clip(lower=0)
 
@@ -38,10 +42,14 @@ for index, row in df_demands.iterrows():
             F_t = v0
             r_t = 0
         else:
-            v_t = v0 + (t/T) * (vT - v0)
+            factor_T = factor_incertidumbre_no_lineal(T)
+            factor_t = factor_incertidumbre_no_lineal(t)
+            peso_error = factor_t / factor_T if factor_T > 0 else 0
+            v_t = v0 + peso_error * (vT - v0)
 
-            r_t = np.random.normal(0, 1)
-            F_t = max(0, v_t * (1 + t * alpha * r_t))
+            r_t = np.clip(rng.normal(0, 1), -4, 4)
+            sigma_t = calcular_desviacion_clark(v_t, t, alpha)
+            F_t = max(0, v_t + sigma_t * r_t)
         
         historial_pronosticos.append({'Fecha de Hoy': dia_actual, 'n': n, 'T': T, 't': t, 'v0': v0, 'vT': vT, 'v_t': v_t, 'F_t': F_t, 'r_t': r_t})
 
@@ -51,6 +59,6 @@ df_n1_16 = df_evolucion[(df_evolucion['n'] == 'n1') & (df_evolucion['T'] == 16)]
 #print(df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].head(17))
 print(df_n1_16[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']])
 
-df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].to_excel('Evolucion_Pronosticos.xlsx', index=False)
+#df_evolucion[['Fecha de Hoy','n', 'T', 't', 'v0', 'vT', 'v_t', 'F_t','r_t']].to_excel('Evolucion_Pronosticos.xlsx', index=False)
 
 #print(df_evolucion.info())

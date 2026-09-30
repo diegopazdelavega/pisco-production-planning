@@ -163,9 +163,9 @@ class PiscoModel:
 
         print("Datos procesados")
     
-    def Cargar_Escenarios_Forecasting(self, ruta_csv, dia_actual, num_escenarios=100, alpha=0.05):
+    def Cargar_Escenarios_Forecasting(self, ruta_csv, dia_actual, num_escenarios=100, alpha=0.05, semilla=61):
         """
-        Lee el pronóstico (F_t) para el día en curso del horizonte rodante
+        Lee el pronóstico (F_t) para el día en curso del RL
         y genera los S escenarios.
         """
         print(f"Generando {num_escenarios} escenarios para la iteración del Día {dia_actual}...")
@@ -173,13 +173,15 @@ class PiscoModel:
         self.N_Scenarios = num_escenarios
         # Las probabilidades en este método de simulación siguen siendo equiprobables (1/N)
         self.Escenarios = {s: 1.0 / num_escenarios for s in range(1, num_escenarios + 1)}
+        rng = np.random.default_rng(semilla + int(dia_actual)) #garantiza que los escenarios sean reproducibles y dependan del día actual (unicos)
         
         # 'Integracion_Forecasting.py'
         self.Demanda_Estocastica = cargar_demanda_estocastica(
             ruta_csv=ruta_csv, 
             dia_actual=dia_actual, 
             num_escenarios=num_escenarios, 
-            alpha=alpha
+            alpha=alpha,
+            rng=rng
         )
         print("Escenarios de demanda cargados exitosamente en la memoria del modelo.")
                   
@@ -228,6 +230,11 @@ class PiscoModel:
         # L, Q_min, Cv, Ci_minus, M = 30000, 10000, 20, 100, 100000
         L, Q_min, Cv, M = 30000, 10000, 20, 100000
         Ci_minus = self.Ci_minus_val
+
+        # CAMBIO OOS-VSS: constantes expuestas para calculos de costo realizado en RH.
+        model.L_lote = Param(initialize=L)
+        model.Cv_cost = Param(initialize=Cv)
+        model.Ci_minus_cost = Param(initialize=Ci_minus)
         
         # PARÁMETROS ESTOCÁSTICOS SAA
         # Las probabilidades ahora vienen del generador SAA (todas valen 1/N)
@@ -384,7 +391,7 @@ class PiscoModel:
         # Función Objetivo
         # Coste I: Inventario de alcohol crudo (Primera Etapa)
         def exp_coste_I(model):
-            return sum(Cv * model.v[a,t] for a in model.A for t in model.Tp)
+            return sum(model.Cv_cost * model.v[a,t] for a in model.A for t in model.Tp)
         model.coste_I = Expression(rule=exp_coste_I)
         # Coste II: Inventario en proceso / maduración (Primera Etapa)
         def exp_coste_II(model):
@@ -399,7 +406,7 @@ class PiscoModel:
         model.coste_III = Expression(rule=exp_coste_III)
         # Coste IV: Valor Esperado del backlog / atraso (Segunda Etapa)
         def exp_coste_IV(model):
-            return sum(model.pi[s] * Ci_minus * model.i_minus[n,t,s] 
+            return sum(model.pi[s] * model.Ci_minus_cost * model.i_minus[n,t,s] 
                        for s in model.S for n in model.N for t in model.Tp)
         model.coste_IV = Expression(rule=exp_coste_IV)  
         
@@ -531,7 +538,7 @@ class PiscoModel:
         
         # (15) Lotes de Camiones (Recepción de Alcohol en múltiplos de L)
         def trucks(model, a, t): 
-            return model.q[a,t] == L * model.l[a,t]
+            return model.q[a,t] == model.L_lote * model.l[a,t]
         model.const_trucks = Constraint(model.A, model.Tp, rule=trucks)
 
         # (16) Dinámica de Envejecimiento (Z_u -> Z_u+1)
@@ -654,7 +661,7 @@ class PiscoModel:
         instance = self.Problema()
         solver = SolverFactory('gurobi')
         solver.options['TimeLimit'] = 1800
-        solver.options['MIPGap'] = 0.001 
+        solver.options['MIPGap'] = 0.05 
         results = solver.solve(instance, tee=True)
         
         if (results.solver.status == pyo.SolverStatus.ok) and (results.solver.termination_condition in [pyo.TerminationCondition.optimal, pyo.TerminationCondition.maxTimeLimit]):

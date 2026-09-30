@@ -165,7 +165,12 @@ class PiscoModel_Operativo:
         
         # L, Q_min, Cv, Ci_minus, M = 30, 20, 1, 150, 10000
         
-        L, Q_min, Cv, Ci_minus, M = 30000, 10000, 20, 100, 100000        
+        L, Q_min, Cv, Ci_minus, M = 30000, 10000, 20, 100, 100000
+
+        # CAMBIO OOS-VSS: constantes expuestas para calculos de costo realizado en RH.
+        model.L_lote = Param(initialize=L)
+        model.Cv_cost = Param(initialize=Cv)
+        model.Ci_minus_cost = Param(initialize=Ci_minus)
         
         def D_nt(model, n, t):
             n_name = self.Mezclas.iloc[n-1]['n']
@@ -288,7 +293,7 @@ class PiscoModel_Operativo:
         
         # Función Objetivo (Puramente Determinista)
         def exp_coste_I(model):
-            return sum(Cv * model.v[a,t] for a in model.A for t in model.Tp)
+            return sum(model.Cv_cost * model.v[a,t] for a in model.A for t in model.Tp)
         model.coste_I = Expression(rule=exp_coste_I)
 
         def exp_coste_II(model):
@@ -303,7 +308,7 @@ class PiscoModel_Operativo:
         model.coste_III = Expression(rule=exp_coste_III)
 
         def exp_coste_IV(model):
-            return sum(Ci_minus * model.i_minus[n,t] 
+            return sum(model.Ci_minus_cost * model.i_minus[n,t] 
                        for n in model.N for t in model.Tp)
         model.coste_IV = Expression(rule=exp_coste_IV)  
         
@@ -398,7 +403,7 @@ class PiscoModel_Operativo:
         model.const_max_lot = Constraint(model.Pn, model.Tp, rule=max_lot_size)
         
         def trucks(model, a, t): 
-            return model.q[a,t] == L * model.l[a,t]
+            return model.q[a,t] == model.L_lote * model.l[a,t]
         model.const_trucks = Constraint(model.A, model.Tp, rule=trucks)
 
         def envejecimiento(model, n, p, t, u):
